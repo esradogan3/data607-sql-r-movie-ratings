@@ -1,0 +1,18 @@
+---
+title: "SQL and R – Movie Ratings Approach"
+author: "Esra Dogan"
+format: html
+editor: visual
+---
+
+## Introduction
+
+How do my friends and family rate six popular movies? To see that I chose 6 movies: The Odyssey(2026), Spider-Man: Brand New Day(2026), Dune: Part Two(2024), Oppenheimer(2023), The Batman(2022), Dune(2021).
+
+## Planned Approach
+
+I will ask at least five people to rate these movies on a scale from 1 to 5 using a Google Form. If they have not seen a movie, they will be able to select an option for that, which will be stored as "NULL" in the SQL database and appear as "NA" in R. I plan to create three SQL tables: a "users" table for the participants, a "movies" table for the six selected movies, and a "ratings" table connecting each participant to the movies they rated. I will use a SQL "JOIN" to combine the tables and load the result into R as a data frame. Then, I will calculate the average rating for each movie.
+
+## Anticipated Challenges
+
+Although I know that most of the people I plan to survey have watched these movies, I am still concerned about receiving many missing ratings. Another possible challenge is recall bias. Some time has passed since films such as Dune(2022) and The Batman(2022) were released, so participants may not clearly remember the details of the movies or how much they enjoyed them.
