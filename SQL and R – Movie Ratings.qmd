@@ -1,0 +1,122 @@
+---
+title: "SQL and R – Movie Ratings"
+author: "Esra Dogan"
+format: html
+editor: visual
+---
+
+## Introduction
+
+How do my friends and family rate six popular movies? To see that I chose 6 movies: The Odyssey(2026), Spider-Man: Brand New Day(2026), Dune: Part Two(2024), Oppenheimer(2023), The Batman(2022), Dune(2021).
+
+## Planned Approach
+
+I will ask at least five people to rate these movies on a scale from 1 to 5 using a Google Form. If they have not seen a movie, they will be able to select an option for that, which will be stored as "NULL" in the SQL database and appear as "NA" in R. I plan to create three SQL tables: a "users" table for the participants, a "movies" table for the six selected movies, and a "ratings" table connecting each participant to the movies they rated. I will use a SQL "JOIN" to combine the tables and load the result into R as a data frame. Then, I will calculate the average rating for each movie.
+
+## Anticipated Challenges
+
+Although I know that most of the people I plan to survey have watched these movies, I am still concerned about receiving many missing ratings. Another possible challenge is recall bias. Some time has passed since films such as Dune(2021) and The Batman(2022) were released, so participants may not clearly remember the details of the movies or how much they enjoyed them.
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(dplyr)
+library(ggplot2)
+```
+
+## Database Design
+
+I created three tables in PostgreSQL: users, movies, and ratings. 
+The rating table connects each user to each movie using user_id and movie_id.
+
+I connected R to the PostgreSQL database and used a SQL query in R to join the three tables. I loaded the result into R as a data frame named movie_ratings_df. The resulting data frame contains the user name, movie title, and rating.
+
+```{r}
+con <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = "movie_ratings",
+  host = "localhost",
+  port = 5432,
+  user = "postgres",
+  password = Sys.getenv("PG_PASSWORD")
+)
+```
+
+```{r}
+movie_ratings_df <- dbGetQuery(
+  con,
+  "
+  SELECT
+      users.name AS user_name,
+      movies.title AS movie,
+      ratings.rating
+  FROM ratings
+  JOIN users
+      ON ratings.user_id = users.user_id
+  JOIN movies
+      ON ratings.movie_id = movies.movie_id
+  ORDER BY users.user_id, movies.movie_id;
+  "
+)
+```
+
+```{r}
+sum(is.na(movie_ratings_df$rating))
+```
+### Missing Ratings
+There were 12 missing ratings because some participants had not seen every movie. I stored these responses as "NULL" in SQL and they appeared as "NA" in R. I excluded the missing values when calculating movie averages by using "na.rm = TRUE".
+
+```{r}
+user_summary <- movie_ratings_df %>%
+  group_by(user_name) %>%
+  summarise(
+    average_rating = round(mean(rating, na.rm = TRUE), 2),
+    number_of_ratings = sum(!is.na(rating))
+  )
+
+user_summary
+```
+### Rating Standardization
+
+Standardizing the ratings could help account for differences in individual rating habits, since some participants may generally give higher or lower ratings than others. However, the dataset is small, and some participants rated only a few movies such as user_6 only rated one movie. Therefore, standardization may produce unreliable results in this case. I decided to use the original 1–5 ratings for the main analysis while keeping unseen movies as missing values.
+
+```{r}
+movie_summary <- movie_ratings_df %>%
+  group_by(movie) %>%
+  summarise(
+    average_rating = round(mean(rating, na.rm = TRUE), 2),
+    number_of_ratings = sum(!is.na(rating)),
+    missing_ratings = sum(is.na(rating))
+  ) %>%
+  arrange(desc(average_rating))
+
+movie_summary
+```
+
+```{r}
+ggplot(movie_summary, aes(
+  x = reorder(movie, average_rating),
+  y = average_rating
+)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Average Rating by Movie",
+    x = "Movie",
+    y = "Average Rating"
+  ) +
+  scale_y_continuous(limits = c(0, 5))
+```
+
+```{r}
+movie_summary %>%
+  select(movie, average_rating)
+```
+
+## Results
+The Odyssey(2026) received the highest average rating at 4.50. Oppenheimer(2023) followed with an average of 4.33, and Spider-Man: Brand New Day(2026) with an average of 4.17. Dune: Part Two(2024) received an average rating of 3.67. The Batman(2022) and Dune(2021) receieved the lowest average ratings, both at 2.50. 
+These results should be interpreted carefully because not every participant rated every movie. For example, the average ratings for Dune: Part Two (2024) and Oppenheimer (2023) were each calculated from only three ratings rather than all six participants.
+
+## Conclusion
+
+The results show that The Odyssey received the highest average rating among the six movies. However, the small number of participants and the missing ratings limit how strongly these results can be interpreted. A larger sample with more complete responses would provide a more reliable comparison of the movies.
